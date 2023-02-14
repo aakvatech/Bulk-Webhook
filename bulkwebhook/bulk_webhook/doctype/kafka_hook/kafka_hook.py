@@ -79,7 +79,7 @@ def run_kafka_hook(
     if isinstance(doc_list, str):
         doc_list = [doc_list]
 
-    for doc_name in doc_list:
+    for doc_name in set(doc_list):
         try:
             doc = frappe.get_doc(doctype, doc_name)
             _run_kafka_hook(hook, doc)
