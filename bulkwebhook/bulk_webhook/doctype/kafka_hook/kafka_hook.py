@@ -79,15 +79,13 @@ def run_kafka_hook(
     if isinstance(doc_list, str):
         doc_list = [doc_list]
 
-    for doc_name in set(doc_list):
+    for doc_name in doc_list:
         try:
             doc = frappe.get_doc(doctype, doc_name)
             _run_kafka_hook(hook, doc)
         except Exception as e:
-            if is_from_request:
-                raise
-
-            frappe.log_error(title="Error running Kafka Hook")
+            if not is_from_request:
+                frappe.log_error(title="Error running Kafka Hook")
 
 
 def _run_kafka_hook(hook, doc):
@@ -123,20 +121,6 @@ def get_webhook_data(doc: Document, kafka_hook: KafkaHook) -> dict:
     return data
 
 
-def enqueue_kafka_hook(doc: Document, webhook: frappe._dict):
-    frappe.enqueue(
-        "bulkwebhook.bulk_webhook.doctype.kafka_hook.kafka_hook.run_kafka_hook",
-        enqueue_after_commit=True,
-        doc=doc,
-        kafka_hook=webhook,
-    )
-
-    # keep list of webhooks executed for this doc in this request
-    # so that we don't run the same webhook for the same document multiple times
-    # in one request
-    frappe.flags.kafkahook_executed.setdefault(doc.name, []).append(webhook.name)
-
-
 def generate_kafkahook() -> Dict[str, list]:
     webhooks = {}
     webhooks_list = frappe.get_all(
@@ -163,11 +147,13 @@ def run_webhooks(doc: Document, method: str):
     ):
         return
 
-    event_list = {"on_update", "after_insert", "on_submit", "on_cancel", "on_trash"}
+    event_list = {
+        "on_update", "after_insert", "on_submit", "on_cancel", "on_trash"
+    }
 
     # value change is not applicable in insert
     if not doc.flags.in_insert:
-        event_list.extend(["on_change", "before_update_after_submit"])
+        event_list.update(["on_change", "before_update_after_submit"])
 
     # skip if method is not in applicable event list
     if method not in event_list:
@@ -196,11 +182,23 @@ def run_webhooks(doc: Document, method: str):
         trigger_webhook = False
         if not webhook.condition:
             trigger_webhook = True
+
         elif frappe.safe_eval(
             webhook.condition, eval_locals={**WEBHOOK_CONTEXT, "doc": doc}
         ):
             trigger_webhook = True
+
         if not trigger_webhook:
             continue
 
-        enqueue_kafka_hook(doc, webhook)
+        frappe.enqueue(
+            "bulkwebhook.bulk_webhook.doctype.kafka_hook.kafka_hook.run_kafka_hook",
+            enqueue_after_commit=True,
+            doc=doc,
+            kafka_hook_name=webhook.name,
+        )
+
+        # keep list of webhooks executed for this doc in this request
+        # so that we don't run the same webhook for the same document multiple times
+        # in one request
+        frappe.flags.kafkahook_executed.setdefault(doc.name, []).append(webhook.name)
