@@ -41,18 +41,8 @@ def resend_kafkahook(kafkahook_name, doctype_name, doc_list):
     if isinstance(doc_list, str):
         doc_list = json.loads(doc_list)
 
-    for doc_name in doc_list:
-        try:
-            doc = frappe.get_doc(doctype_name, doc_name)
-            try:
-                run_kafka_hook(doc, kafkahook)
-                frappe.msgprint("Webhook sent successfully")
-            except Exception as e:
-                frappe.log_error(str(e), "Manual Webhook enqueue")
-        except Exception as e:
-            frappe.msgprint("Document {0} not found".format(doc_name))
-            frappe.log_error(str(e), "Manual Webhook loop")
-    frappe.db.commit()
+    run_kafka_hook(kafkahook_name, doctype=doctype_name, doc_list=[doc_list])
+    frappe.msgprint("Webhook sent successfully")
 
 
 @frappe.whitelist()
