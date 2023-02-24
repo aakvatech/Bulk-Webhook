@@ -12,7 +12,7 @@ def get_kafka_client(settings_name: str):
     return KafkaProducer(
         bootstrap_servers=settings.bootstrap_servers,
         client_id=settings.client_id,
-        value_serializer=lambda e: json.dumps(e).encode("ascii"),
+        value_serializer=lambda e: json.dumps(e).encode("ascii"), # TODO: This is may not working with butes.
         key_serializer=lambda e: json.dumps(e).encode("ascii"),
         security_protocol="SASL_SSL",
         sasl_mechanism="PLAIN",
