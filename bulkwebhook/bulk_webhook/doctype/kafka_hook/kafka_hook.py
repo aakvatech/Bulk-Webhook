@@ -63,8 +63,34 @@ class KafkaHook(Document):
         validate_template(self.webhook_json)
 
 
-def run_kafka_hook(doc: Document, kafka_hook: dict):
-    hook: KafkaHook = frappe.get_cached_doc("Kafka Hook", kafka_hook.get("name"))
+def run_kafka_hook(
+    kafka_hook_name: str,
+    doc=None,
+    doctype=None,
+    doc_list=None,
+):
+    hook: KafkaHook = frappe.get_cached_doc("Kafka Hook", kafka_hook_name)
+    is_from_request = bool(frappe.request)
+
+    if doc:
+        _run_kafka_hook(hook, doc)
+        return
+
+    if isinstance(doc_list, str):
+        doc_list = [doc_list]
+
+    for doc_name in doc_list:
+        try:
+            doc = frappe.get_doc(doctype, doc_name)
+            _run_kafka_hook(hook, doc)
+        except Exception:
+            if is_from_request:
+                raise
+
+            frappe.log_error(title="Error running Kafka Hook")
+
+
+def _run_kafka_hook(hook, doc):
     data = get_webhook_data(doc, hook)
 
     try:
