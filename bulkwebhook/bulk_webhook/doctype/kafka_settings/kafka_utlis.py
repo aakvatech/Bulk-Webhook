@@ -9,10 +9,20 @@ from confluent_kafka.schema_registry.protobuf import ProtobufSerializer
 from confluent_kafka.serialization import StringSerializer, SerializationContext, MessageField
 
 
+
+"""
+    Confluent Kafka libray is currently used to send Protobuf data to Kafka. 
+    This library was chosen because the previous library (Kafka Python) used to send Protobuf data to Kafka,
+    was not meet the Protobuf Serialization requirements required by the kafka consumers.
+    
+    March 16th, 2023
+"""
+
 def get_kafka_client(settings, method=None):
     """Create a KafkaProducer or Confluent_kafka Producer instance for the given settings name."""
 
     if method:
+        # create a confluent_kafka producer instance
         conf = {
             "bootstrap.servers": settings.bootstrap_servers,
             "client.id": settings.client_id,
@@ -24,6 +34,7 @@ def get_kafka_client(settings, method=None):
         
         return Producer(**conf)
     
+    # create a KafkaProducer instance
     return KafkaProducer(
         bootstrap_servers=settings.bootstrap_servers,
         client_id=settings.client_id,
