@@ -35,7 +35,7 @@ def get_confluent_kafka_client(settings_doc):
     conf = {
         "bootstrap.servers": settings_doc.bootstrap_servers,
         "client.id": settings_doc.client_id,
-        "security.protocol": "SASL_SSL",
+        "security.protocol": settings_doc.security_protocol,
         "sasl.mechanism": "PLAIN",
         "sasl.username": settings_doc.get_password("api_key"),
         "sasl.password": settings_doc.get_password("api_secret"),
@@ -144,6 +144,10 @@ def run_kafka_hook_for_protobuf(kafka_hook, doctype, doc=None, doc_list=None):
         create_kafka_request_log(doctype=kafka_hook.webhook_doctype, status="sending to kafka", doc_list=doc_list)
 
     settings_doc = frappe.get_cached_doc("Kafka Settings", kafka_hook.kafka_settings)
+    if not settings_doc.security_protocol:
+        frappe.throw(
+            "Security Protocol is required for Kafka Settings, please set it on the Kafka Settings document."
+        )
     schema_registry_client = get_schema_registry_client(settings_doc)
     producer = get_confluent_kafka_producer(settings_doc)
 
